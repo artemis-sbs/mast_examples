@@ -18,4 +18,4 @@ To change which example is run change the story_file in script.py
 
 This is a work in progress syntax and functionality may change over time.
 
-sbs_utils and match is a community driven library and contribution and feedback is welcomed.
+MAST is included in sbs_utils. A community driven library and contribution and feedback is welcomed.
