@@ -1,0 +1,21 @@
+style area: 20,30,80,70;
+""""""""
+Presenting
+"""""""
+await gui timeout 2s
+style area: 20,30,80,70;
+""""""""
+A new programming language
+"""""""
+await gui timeout 2s
+style area: 20,30,80,70;
+""""""""
+For Artemis Cosmos
+"""""""
+await gui timeout 2s
+
+style area: 20,30,80,70;
+""""""""
+Welcome to mast
+"""""""
+await gui

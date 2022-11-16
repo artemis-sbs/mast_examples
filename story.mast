@@ -1,0 +1,59 @@
+await => draw_rigel
+await gui timeout 2s
+
+await => draw_rigel
+await => draw_kirk_one {"text": "What does a Romulan frog use for camouflage?" }
+#await => draw_spock_one {"text": " "} 
+await gui timeout 5s
+await => draw_rigel
+#await => draw_kirk_one {"text": " " }
+await => draw_spock_one {"text": "I don't know Jim. What?"} 
+await gui timeout 5s
+
+await => draw_rigel
+await => draw_kirk_two {"text": "A croaking device" }
+await gui timeout 5s
+await => draw_rigel
+await => draw_spock_one {"text": ""} 
+await gui timeout 5s
+->END
+
+=== draw_rigel ===
+style area: 0,0,100,90;
+image "{mission_dir}/data/rigel-vii"
+->END
+
+=== draw_kirk_one ===
+section
+style area: 10, 90-768px, 10+608px,90;
+image "{mission_dir}/data/kirk"
+section
+style area: 10,90,10+608px,100-30px;
+""""""
+{text}
+""""""""
+->END
+=== draw_kirk_two ===
+section
+style area: 10, 90-582px, 10+746px,90;
+image "{mission_dir}/data/kirk2"
+section
+style area: 10,90,10+746px,100-30px;
+""""""
+{text}
+""""""""
+->END
+
+==== draw_spock_one ====
+section
+style area: 90-512px, 90-768px, 90,90;
+image "{mission_dir}/data/spock"
+section
+style area: 90-512px,90,90,100-30px;
+
+""""""
+{text}
+""""""""
+->END
+
+
