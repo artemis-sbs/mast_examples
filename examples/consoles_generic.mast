@@ -1,60 +1,75 @@
 import examples\bar.mast
 
+started = False
+
+
 if IS_SERVER:
-    ->server_main
+    => map
+    ->server_page
 else:
-    -> client_main
+    event change_console:
+        ->select_console
+    end_event
+    ->select_console
 end_if
 
-============== server_main ========
-started = False
-=> map
 
-============== server_page =========
-style area: 20,40, 80,60;
-
+============== server_page =======================
 """ This is the example script"""
 
 await choice:
     + "Start Mission" if started==False:
-    started = True
     ~~ sbs.resume_sim()~~
     + "Resume Mission" if started==True:
-    ~~ sbs.resume_sim() ~~
+        ~~ sbs.resume_sim() ~~
 end_await
 ->server_page
 
-
 ========= map ================
-# This a task that runs once to create the map content
-
 ~~sbs.create_new_sim()~~
 # First present gui has a sim of None
 # need to wait for the next present
 delay gui  1s
 
-shared artemis = PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser").py_object
+shared player = PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser").py_object
 shared hera = PlayerShip().spawn(sim, 0, 0, 0,"Hera", "tsn", "Battle Cruiser").py_object
 shared atlas = PlayerShip().spawn(sim, 0, 0, 0,"Atlas", "tsn", "Battle Cruiser").py_object
-~~sbs.assign_client_to_ship(0, artemis.id)~~
+~~sbs.assign_client_to_ship(0, player.id)~~
+shared tsn =  ~~ [
+    Npc().spawn(sim, 1000, 0, 1000, "TSN0", "tsn", "Battle Cruiser", "behav_npcship").py_object,
+    Npc().spawn(sim ,1200, 0, 1000, "TSN1", "tsn", "Battle Cruiser", "behav_npcship").py_object,
+    Npc().spawn(sim, 1400, 0, 1000, "TSN2", "tsn", "Battle Cruiser", "behav_npcship").py_object
+    ]~~
 
 ->END
 
 
-========= client_main ==========
-event change_console:
-    ->select_console
-end_event
-console = "helm"
-ship = "artemis"
-
 ========== select_console ==========
 
 style area: 60,50, 75,90;
-vradio ship "artemis, hera, atlas"
+
+~~
+ship_list = ""
+players = SpaceObject.get_objects_with_role("PlayerShip")
+player_names = {}
+first = None
+for player in players:
+    first = player.name(sim) if first is None else first
+    player_names[player.name(sim)] = player
+
+ship_list = ",".join(player_names.keys() )
+
+export_var("ship_list", ship_list)
+export_var("player_names", player_names)
+export_var("ship", first)
+
+~~~
+
+vradio ship "{ship_list}"
 
 section
 style area: 85,50, 99,90;
+console = "helm"
 vradio console "helm,weapons, comms,science,engineering"
 blank
 row
@@ -68,19 +83,11 @@ await gui
 
 ====== console_selected ====
 
-id = 0
-match ship:
-    case "artemis":
-        id = artemis.id
-    case "hera":
-        id = hera.id
-    case "atlas":
-        id = atlas.id
-end_match
+player_selected=player_names[ship]
+~~
+sbs.assign_client_to_ship(client_id, player_selected.id)
+~~
 
-~~
-sbs.assign_client_to_ship(client_id, id)
-~~
 
 match console:
     case "helm":
@@ -99,10 +106,5 @@ match console:
         """Pick a Console"""
 end_match
 
-await choice:
-    + "Head to the bar":
-        ->>EnterBar
-end_await
-# Need this when return from bar
-->console_selected
+await gui
 

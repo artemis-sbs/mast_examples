@@ -9,8 +9,6 @@ shared messages = []
 message = ""
 
 my_face = faces.random_terran()
-~~ customers.append(my_face) ~~
-refresh GotoBar
 
 # Listen for disconnect
 # Remove the client's face
@@ -19,6 +17,9 @@ event disconnect:
 refresh GotoBar
 end_event
 
+===== EnterBar ===
+~~ customers.append(my_face) ~~
+refresh GotoBar
 
 ============== GotoBar ===================
 style area: 0,0,60,80-30px;

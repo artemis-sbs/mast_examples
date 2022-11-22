@@ -1,3 +1,4 @@
+# import is not tracking the basedir, I think it should
 import examples\bar.mast
 
 if IS_SERVER:
@@ -17,7 +18,6 @@ style area: 20,40, 80,60;
 
 await choice:
     + "Start Mission" if started==False:
-    started = True
     ~~ sbs.resume_sim()~~
     + "Resume Mission" if started==True:
     ~~ sbs.resume_sim() ~~
