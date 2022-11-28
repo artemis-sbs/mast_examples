@@ -46,7 +46,7 @@ shared tsn =  ~~ [
 
 ========== select_console ==========
 
-style area: 60,50, 75,90;
+section style="area: 60,50, 75,90;"
 
 ~~
 ship_list = ""
@@ -67,8 +67,7 @@ export_var("ship", first)
 
 vradio ship "{ship_list}"
 
-section
-style area: 85,50, 99,90;
+section style="area: 85,50, 99,90;"
 console = "helm"
 vradio console "helm,weapons, comms,science,engineering"
 blank

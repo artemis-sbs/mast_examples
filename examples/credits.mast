@@ -1,20 +1,22 @@
-style area: 20,30,80,70;
+style credits="area: 20,30,80,70;"
+
+section style=credits
 """"""""
 Presenting
 """""""
 await gui timeout 2s
-style area: 20,30,80,70;
+section style=credits
 """"""""
 A new programming language
 """""""
 await gui timeout 2s
-style area: 20,30,80,70;
+section style=credits
 """"""""
 For Artemis Cosmos
 """""""
 await gui timeout 2s
 
-style area: 20,30,80,70;
+section style=credits
 """"""""
 Welcome to mast
 """""""

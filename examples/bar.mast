@@ -22,7 +22,7 @@ end_event
 refresh GotoBar
 
 ============== GotoBar ===================
-style area: 0,0,60,80-30px;
+section style="area: 0,0,60,80-30px;"
 
 face barkeep
 """""""""""""""""""""""""""""""""
@@ -40,8 +40,7 @@ I'm all out.
 If you go to DS1 and get more supply them the Next one is on me.
 ^^^^^^^^^^^^ if martinis == 0 and vodka == 0 and beer ==0
 
-section
-style area: 0,80,100,100-30px;
+section style="area: 0,80,100,100-30px;"
 face my_face
 for c in customers:
     if c != my_face:
@@ -51,15 +50,14 @@ next c
 
 section
 
-style area: 60,0, 100,80-30px;row-height: 65px;
+section style="area: 60,0, 100,80-30px;row-height: 65px;"
 for msg in reversed(messages):
     face msg["face"]
     """{msg["msg"]}"""
     row
 next c
 
-section
-style area: 0,80-50px, 100,80;
+section style="area: 0,80-50px, 100,80;"
 # holes give the next control its space
 hole
 hole
@@ -98,7 +96,7 @@ if (beer+martinis+vodka) > 0:
     ->GotoBar
 end_if
 
-style area: 30, 20, 80, 60;
+section style="area: 30, 20, 80, 60;"
 
 face barkeep
 row
