@@ -1,109 +1,43 @@
 import examples\bar.mast
 
 
+
 if IS_SERVER:
+~~
+sbs.create_new_sim()
+sbs.resume_sim()
+~~
     ->server_main
 else:
     -> client_main
 end_if
 
-============== server_main ========
-started = False
-=> map
 
-============== server_page =========
-section style="area: 20,40, 80,60;"
+=========== server_main =====
+section style="area:2,20,18,25;"
 
-""" This is the example script"""
-
-await choice:
-    + "Start Mission" if started==False:
-    started = True
-    ~~ sbs.resume_sim()~~
-    + "Resume Mission" if started==True:
-    ~~ sbs.resume_sim() ~~
-end_await
-->server_page
-
-
-========= map ================
-# This a task that runs once to create the map content
-
-~~sbs.create_new_sim()~~
-# First present gui has a sim of None
-# need to wait for the next present
-delay gui  1s
-
-#shared artemis = PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser").py_object
-#shared hera = PlayerShip().spawn(sim, 0, 0, 0,"Hera", "tsn", "Battle Cruiser").py_object
-#shared atlas = PlayerShip().spawn(sim, 0, 0, 0,"Atlas", "tsn", "Battle Cruiser").py_object
-#~~sbs.assign_client_to_ship(0, artemis.id)~~
-~~create_map(mast_scheduler)~~
-
-->END
-
-
-========= client_main ==========
-event change_console:
-    ->select_console
-end_event
-console = "helm"
-ship = "artemis"
-
-========== select_console ==========
-
-section style="area: 60,50, 75,90;"
-vradio ship "artemis, hera, atlas"
-
-section style="area: 85,50, 99,90;"
-vradio console "helm,weapons, comms,science,engineering"
-blank
-row
-button "accept":
-    ->console_selected
+button "Speak":
+~~
+face = faces.random_terran();
+sbs.send_story_dialog(0, "Admiral", "Ready...",    face, "#333")
+~~~
+<<->server_main
 end_button
 
 await gui
 
 ->END
 
-====== console_selected ====
+====== client_main =======
+section style="area:2,20,18,25;"
 
-id = 0
-match ship:
-    case "artemis":
-        id = artemis.id
-    case "hera":
-        id = hera.id
-    case "atlas":
-        id = atlas.id
-end_match
-
+button "Speak" :
 ~~
-sbs.assign_client_to_ship(client_id, id)
-~~
+face = faces.random_terran();
+sbs.send_story_dialog(client_id, "Admiral", "Ready...",    face, "#333")
+~~~
+<<->client_main
+end_button
 
-match console:
-    case "helm":
-        widget_list "normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
-    case "weapons":
-        widget_list "normal_weap" "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
-    case "science":
-        widget_list "normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
-    case "engineering":
-        widget_list "normal_engi" "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
-    case "comms":
-        widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
-    case "mainscreen":
-        widget_list "normal_main" "3dview^ship_data^text_waterfall"
-    case _:
-        """Pick a Console"""
-end_match
-
-await choice:
-    + "Head to the bar":
-        ->>EnterBar
-end_await
-# Need this when return from bar
-->console_selected
-
+await gui
+->END

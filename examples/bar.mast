@@ -75,7 +75,7 @@ if len(messages)>12:
     message = ""
         refresh GotoBar
     end_if
-    <<-GotoBar<<
+    <<->>GotoBar
 end_button
 
 
