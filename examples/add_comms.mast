@@ -30,8 +30,8 @@ end_await
 delay gui  1s
 ~~create_map(mast_scheduler)~~
 
-for station in SpaceObject.get_role("Station"):
-    for player in SpaceObject.get_role("__PLAYER__"):
+for station in role("Station"):
+    for player in role("__PLAYER__"):
         => artemis_comms_ds1 {"self": player, "station": station}
     next player
 next station

@@ -1,0 +1,256 @@
+# import is not tracking the basedir, I think it should
+#import examples\bar.mast
+logger 
+
+
+if IS_SERVER:
+    ->server_main
+else:
+    -> client_main
+end_if
+
+============== server_main ========
+started = False
+=> map
+
+============== server_page =========
+section style="area: 20,40, 80,60;"
+
+""" This is the example script"""
+
+await choice:
+    + "Start Mission" if started==False:
+    ~~ sbs.resume_sim()~~
+    + "Resume Mission" if started==True:
+    ~~ sbs.resume_sim() ~~
+end_await
+->server_page
+
+
+========= map ================
+~~sbs.create_new_sim()~~
+delay gui  1s
+~~create_map(mast_scheduler)~~
+
+->END
+
+====== artemis_comms_ds1 =====
+
+await artemis comms ds1:
+ + "Say Hi":
+    have artemis tell ds1 "Hello"
+    delay sim 1s
+    have ds1 tell artemis "Hi back"
+end_await
+await artemis comms ds1:
+ + "Hail":
+    have ds1 tell artemis "Ready"
+end_await
+await artemis comms ds1:
+ + "Goodbye":
+    have artemis tell ds1 "Goodbye"
+    have ds1 tell artemis "Later"
+end_await
+->END
+
+========= client_main ==========
+event change_console:
+    ->select_console
+end_event
+console = "helm"
+ship = "artemis"
+
+========== select_console ==========
+
+section style="area: 60,50, 75,90;"
+vradio ship "artemis, hera, atlas"
+
+section style="area: 85,50, 99,90;"
+vradio console "helm,weapons, comms,science,engineering"
+blank
+row
+button "accept":
+    ->console_selected
+end_button
+
+await gui
+
+->END
+
+====== console_selected ====
+
+id = 0
+match ship:
+    case "artemis":
+        id = artemis.id
+    case "hera":
+        id = hera.id
+    case "atlas":
+        id = atlas.id
+end_match
+
+~~
+sbs.assign_client_to_ship(client_id, id)
+~~
+
+match console:
+    case "helm":
+        widget_list "normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+    case "weapons":
+        widget_list "normal_weap" "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+    case "science":
+        widget_list "normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+    case "engineering":
+        widget_list "normal_engi" "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+    case "comms":
+        widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+    case "mainscreen":
+        widget_list "normal_main" "3dview^ship_data^text_waterfall"
+    case _:
+        """Pick a Console"""
+end_match
+
+await choice:
+    + "Head to the bar":
+        ->>EnterBar
+end_await
+# Need this when return from bar
+->console_selected
+
+====== player_comms_station =====
+
+await self comms station:
+ + "Say Hi":
+    have self tell station "Hello"
+    delay sim 1s
+    have station tell self "Hi back"
+end_await
+await self comms station:
+ + "Hail":
+    have station tell self "Ready"
+end_await
+await self comms station:
+ + "Goodbye":
+    have self tell station "Goodbye"
+    have station tell self "Later"
+end_await
+->END
+
+
+====== patrol =====
+
+station = closest_object(self, linked_to(self, "Visit"))
+
+have self approach station
+await self near station 700:
+    #do unlink({self}, "Visit", {station})
+    do self.remove_link("Visit", station)
+end_await
+# are there any links left
+any = has_link("Visit")
+# if there is nothing to patrol 
+# rebuild patrol list
+if len(any) ==0:
+    do link({self}, "Visit", role("Station"))
+end_if
+-> patrol
+
+
+======== do_patrol  ==========
+
+await => change_target & set_target
+delay 2s
+-> do_patrol
+
+==== change_target ======
+=> new_orders | enemy_close | target_gone | arrived_friendly | nothing_to_visit
+->END
+
+=== set_target === 
+# set target and make sure not to shoot friendly
+the_target = get_dedicated_link(self, "target")
+target_changed = get_inventory_value(self, "target_changed")
+if the_target and target_changed:
+    do target(sim, self, the_target, to_object(the_target).side != self.side)
+    do set_inventory_value(self, "target_changed", False)
+end_if
+->END
+
+
+???? new_orders ???
+target_changed = get_inventory_value(self, "target_changed")
+->FAIL if target_changed
+ordered_target = get_dedicated_link(self, "ordered_target")
+->FAIL if ordered_target is None
+the_target = get_dedicated_link(self, "target")
+->FAIL if ordered_target == the_target
+# Make sure target is a object
+the_target = ordered_target
+do set_dedicated_link(self,"target", the_target)
+do set_dedicated_link(self, "ordered_target", None)
+do set_inventory_value(self, "target_changed", True)
+->END
+
+???? enemy_close ???
+# Maybe do broad test here?
+target_changed = get_inventory_value(self, "target_changed")
+->FAIL if target_changed
+closest_enemy = closest(self, role("raider"), 3000 )
+->FAIL if closest_enemy is None
+do get_dedicated_link(self,"target", the_target)
+->FAIL if the_target == closest_enemy.id
+the_target = closest_enemy.id
+do set_dedicated_link(self,"target", the_target)
+do set_inventory_value(self, "target_changed", True)
+->END
+
+
+???? target_gone ???
+#there is no target
+the_target = get_dedicated_link(self, "target")
+target_changed = get_inventory_value(self, "target_changed")
+->FAIL if target_changed
+->FAIL if the_target is None
+# The target no longer exists
+if not object_exists(sim, the_target):
+    the_target = None
+    do set_dedicated_link(self,"target", the_target)
+    do set_inventory_value(self, "target_changed", True)
+    ->END
+end_if
+-> FAIL if distance_id(to_id(the_target), to_id(self)) < 6000
+#target out of range
+the_target = None
+do set_dedicated_link(self,"target", the_target)
+do set_inventory_value(self, "target_changed", True)
+->END
+
+
+???????? arrived_friendly ????
+the_target = get_dedicated_link(self, "target")
+target_changed = get_inventory_value(self, "target_changed")
+->FAIL if target_changed
+->FAIL if the_target and to_object(the_target).side != self.side
+->FAIL if the_target and distance_id(to_id(the_target), to_id(self)) > 700
+if the_target is not None:
+    do unlink(self, "Visit",  the_target)
+end_if
+old_target = the_target
+the_target = closest(self, linked_to(self, "Visit"))
+->FAIL if the_target is None
+->FAIL if the_target == old_target
+do set_dedicated_link(self,"target", the_target)
+do set_inventory_value(self, "target_changed", True)
+->END
+
+?????? nothing_to_visit ???????
+# Still stuff to visit
+-> FAIL if len(linked_to(self, "Visit")) > 0
+do link(self, "Visit", role("Station"))
+the_target = closest(self, linked_to(self, "Visit"))
+->FAIL if the_target is None
+do set_dedicated_link(self,"target", the_target)
+do set_inventory_value(self, "target_changed", True)
+->END
+
+
