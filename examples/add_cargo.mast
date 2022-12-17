@@ -1,7 +1,8 @@
 # import is not tracking the basedir, I think it should
-#import examples\bar.mast
+import examples\bar.mast
 logger 
 
+raider_count = 4
 
 if IS_SERVER:
     ->server_main
@@ -28,30 +29,21 @@ end_await
 
 
 ========= map ================
-~~sbs.create_new_sim()~~
+do sbs.create_new_sim()
 delay gui  1s
-~~create_map(mast_scheduler)~~
+do create_map(mast_scheduler)
 
 ->END
 
-====== artemis_comms_ds1 =====
-
-await artemis comms ds1:
- + "Say Hi":
-    have artemis tell ds1 "Hello"
-    delay sim 1s
-    have ds1 tell artemis "Hi back"
-end_await
-await artemis comms ds1:
- + "Hail":
-    have ds1 tell artemis "Ready"
-end_await
-await artemis comms ds1:
- + "Goodbye":
-    have artemis tell ds1 "Goodbye"
-    have ds1 tell artemis "Later"
-end_await
-->END
+========= spawn_wave ===========
+# Watches for no more raiders
+# if there are not any, spawn more
+if len(role("raider")) == 0:
+    do create_wave(mast_scheduler, raider_count = 4)
+    raider_count = raider_count + 1
+end_if
+delay 10s
+-> spawn_wave
 
 ========= client_main ==========
 event change_console:
@@ -137,30 +129,82 @@ end_await
 ->END
 
 
-====== patrol =====
 
-station = closest_object(self, linked_to(self, "Visit"))
+======== harvester_patrol  ==========
 
-have self approach station
-await self near station 700:
-    #do unlink({self}, "Visit", {station})
-    do self.remove_link("Visit", station)
-end_await
-# are there any links left
-any = has_link("Visit")
-# if there is nothing to patrol 
-# rebuild patrol list
-if len(any) ==0:
-    do link({self}, "Visit", role("Station"))
+max_storage = 1500
+
+event damage:
+    #log "damage {event.origin_id} {event.parent_id} {event.selected_id}"
+    shooter = to_object(event.origin_id)
+    <<-POP if shooter is None
+    the_target = to_object(event.selected_id)
+    <<-POP if target is None
+    storing = get_inventory_value(shooter, "storing")
+    storage = get_inventory_value(shooter, "storage")
+    <<-POP if storage is None or storing is None
+    <<-POP if storage >= max_storage
+    <<-POP if not has_role(the_target, storing)
+    
+    taking = get_inventory_value(the_target, "amount")
+    amount = 50
+    if taking< 50:
+        amount= taking
+        do set_inventory_value(the_target, "amount", 0)
+    else:
+        do set_inventory_value(the_target, "amount", taking - 50)
+    end_if
+    amount = storage+amount
+    if amount > max_storage:
+        do set_inventory_value(shooter, "storage", max_storage)
+    else:
+        do set_inventory_value(shooter, "storage", amount)
+    end_if
+    log "damage mined {shooter.comms_id} {storing} {storage}"
+end_event
+
+await => change_harvester_target & set_target
+delay 2s
+-> harvester_patrol
+
+==== change_harvester_target ======
+=> new_orders | storage_is_full | mine_asteroid 
+->END
+
+???????? storage_is_full ????
+storage = get_inventory_value(self, "storage")
+-> FAIL if storage < max_storage
+the_target = closest(self, role("Station"))
+->FAIL if the_target is None
+->FAIL if the_target == old_target
+do set_dedicated_link(self,"target", the_target)
+do set_inventory_value(self, "target_changed", True)
+->END
+
+
+???????? mine_asteroid ????
+the_target = get_dedicated_link(self, "target")
+target_changed = get_inventory_value(self, "target_changed")
+->FAIL if target_changed
+if the_target is not None:
+    ->FAIL if the_target and distance_id(to_id(the_target), to_id(self)) > 700
 end_if
--> patrol
+old_target = the_target
+need = get_inventory_value(self, "storing")
+the_target = closest(self, role(need))
+->FAIL if the_target is None
+->FAIL if the_target == old_target
+do set_dedicated_link(self,"target", the_target)
+do set_inventory_value(self, "target_changed", True)
+->END
 
 
-======== do_patrol  ==========
+
+======== friendly_patrol  ==========
 
 await => change_target & set_target
 delay 2s
--> do_patrol
+-> friendly_patrol
 
 ==== change_target ======
 => new_orders | enemy_close | target_gone | arrived_friendly | nothing_to_visit
@@ -168,10 +212,14 @@ delay 2s
 
 === set_target === 
 # set target and make sure not to shoot friendly
-the_target = get_dedicated_link(self, "target")
+the_target = to_object(get_dedicated_link(self, "target"))
 target_changed = get_inventory_value(self, "target_changed")
 if the_target and target_changed:
-    do target(sim, self, the_target, to_object(the_target).side != self.side)
+    #log "{the_target.comms_id} != {self.comms_id} {the_target.side != self.side}"
+    do target(sim, self, the_target, the_target.side != self.side)
+    do set_inventory_value(self, "target_changed", False)
+elif the_target is None and target_changed:
+    do clear_target(sim, self)
     do set_inventory_value(self, "target_changed", False)
 end_if
 ->END
@@ -183,7 +231,7 @@ target_changed = get_inventory_value(self, "target_changed")
 ordered_target = get_dedicated_link(self, "ordered_target")
 ->FAIL if ordered_target is None
 the_target = get_dedicated_link(self, "target")
-->FAIL if ordered_target == the_target
+#->FAIL if ordered_target == the_target
 # Make sure target is a object
 the_target = ordered_target
 do set_dedicated_link(self,"target", the_target)
@@ -197,9 +245,9 @@ target_changed = get_inventory_value(self, "target_changed")
 ->FAIL if target_changed
 closest_enemy = closest(self, role("raider"), 3000 )
 ->FAIL if closest_enemy is None
-do get_dedicated_link(self,"target", the_target)
-->FAIL if the_target == closest_enemy.id
-the_target = closest_enemy.id
+the_target = get_dedicated_link(self,"target")
+#->FAIL if the_target == to_id(closest_enemy)
+the_target = to_id(closest_enemy)
 do set_dedicated_link(self,"target", the_target)
 do set_inventory_value(self, "target_changed", True)
 ->END
@@ -230,15 +278,16 @@ do set_inventory_value(self, "target_changed", True)
 the_target = get_dedicated_link(self, "target")
 target_changed = get_inventory_value(self, "target_changed")
 ->FAIL if target_changed
-->FAIL if the_target and to_object(the_target).side != self.side
-->FAIL if the_target and distance_id(to_id(the_target), to_id(self)) > 700
-if the_target is not None:
-    do unlink(self, "Visit",  the_target)
+# Object could have been destroyed
+if the_target and object_exists(sim, the_target):
+    ->FAIL if to_object(the_target).side != self.side
+    ->FAIL if the_target and distance_id(to_id(the_target), to_id(self)) > 700
 end_if
 old_target = the_target
 the_target = closest(self, linked_to(self, "Visit"))
 ->FAIL if the_target is None
 ->FAIL if the_target == old_target
+do unlink(self, "Visit",  old_target)
 do set_dedicated_link(self,"target", the_target)
 do set_inventory_value(self, "target_changed", True)
 ->END
