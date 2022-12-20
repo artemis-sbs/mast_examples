@@ -3,6 +3,7 @@ import examples\bar.mast
 logger 
 
 raider_count = 4
+debug_choice = "Harvester"
 
 if IS_SERVER:
     ->server_main
@@ -58,7 +59,7 @@ section style="area: 60,50, 75,90;"
 vradio ship "artemis, hera, atlas"
 
 section style="area: 85,50, 99,90;"
-vradio console "helm,weapons, comms,science,engineering"
+vradio console "helm,weapons, comms,science,engineering,debug"
 blank
 row
 button "accept":
@@ -103,8 +104,10 @@ match console:
 end_match
 
 await choice:
+    + "Show Debug View":
+        ->> debug_view
     + "Head to the bar":
-        ->>EnterBar
+        ->> EnterBar
 end_await
 # Need this when return from bar
 ->console_selected
@@ -128,79 +131,292 @@ await self comms station:
 end_await
 ->END
 
+========= debug_view =====
+section style="area: 0, 50px, 100, 100-30px;row-height: 30px"
+
+match debug_choice:
+    case "Harvester":
+        roles = ["Harvester", "Friendly", "Station", "raider", "ResourceAsteroid"]
+    case "Friendly":
+        roles = ["Friendly", "Station", "raider", "ResourceAsteroid", "Harvester"]
+    case "Station":
+        roles = [ "Station", "raider", "ResourceAsteroid", "Harvester", "Friendly"]
+    case _:
+        roles = [ "raider", "ResourceAsteroid", "Harvester", "Friendly", "Station"]
+end_match
+
+for debug_role in roles:
+    ->> debug_section
+next debug_role
+
+await choice:
+    + "Harvesters":
+        debug_choice = "Harvester"
+    + "Friendly":
+        debug_choice = "Friendly"
+    + "Stations":
+        debug_choice = "Station"
+    + "Raiders":
+        debug_choice = "raider"
+    + "Exit":
+        <<-
+timeout 5s:
+-> debug_view
+end_await
+-> debug_view
+
+======== debug_section ====
+blank
+row
+"""{debug_role}"""
+#
+if debug_role == "Station" or debug_role == "ResourceAsteroid":
+    """ Gas """ """ Gold""" """Titanium"""
+else:
+""" targeting """  """ distance """
+
+""" {"Storage" if debug_role == "Harvester" else ""} """
+
+end_if
+row
+for h in role(debug_role):
+    debug_object = to_object(h)
+    match debug_role:
+        case "Harvester":
+            ->> debug_harvester
+        case "Friendly":
+            ->> debug_friendly
+        case "Station":
+            ->> debug_station
+        case "raider":
+            ->> debug_raider
+        case "ResourceAsteroid":
+            ->> debug_asteroid
+    end_match
+    row
+next h
+<<-
+
+
+
+===== debug_harvester ===== 
+
+"""{debug_object.comms_id}"""
+tso = to_object(get_dedicated_link(debug_object, "target"))
+if tso:
+    """{tso.comms_id}"""
+    dist = distance_id(tso.id, debug_object.id)
+    """{int(dist)}"""
+else:
+    blank
+    blank
+end_if
+
+storage_gui = get_inventory_value(debug_object, "storage")
+""" {storage_gui} """
+
+<<-
+
+===== debug_friendly  ===== 
+
+"""{debug_object.comms_id}"""
+tso = to_object(get_dedicated_link(debug_object, "target"))
+if tso:
+    """{tso.comms_id}"""
+    dist = distance_id(tso.id, debug_object.id)
+    """{int(dist)}"""
+else:
+    blank
+    blank
+end_if
+blank
+
+<<-
+
+
+===== debug_asteroid  ===== 
+
+amount = get_inventory_value(debug_object, debug_object.name)
+if amount is None:
+<<-
+end_if
+
+"""{debug_object.comms_id}"""
+amount = get_inventory_value(debug_object, debug_object.name)
+""" {amount} """
+
+<<-
+
+===== debug_station  ===== 
+
+"""{debug_object.comms_id}"""
+
+for res in ["Gas", "Gold", "Titanium"]:
+    v = get_inventory_value(debug_object, res)
+    if v:
+        """{v}"""
+    else:
+    """ """
+    end_if
+next res
+<<-
+
+===== debug_raider  ===== 
+
+"""{debug_object.comms_id}"""
+tso = to_object(get_dedicated_link(debug_object, "target"))
+if tso:
+    """{tso.comms_id}"""
+    dist = distance_id(tso.id, debug_object.id)
+    """{dist}"""
+else:
+    blank
+    blank
+end_if
+blank
+<<-
 
 
 ======== harvester_patrol  ==========
 
-max_storage = 1500
+black_board = MastDataObject({"FULL": False, "max_storage": 1500})
+
+
+========= harvester_loop ==========
 
 event damage:
-    #log "damage {event.origin_id} {event.parent_id} {event.selected_id}"
+    # log "damage {event.origin_id} {event.parent_id} {event.selected_id}"
     shooter = to_object(event.origin_id)
     <<-POP if shooter is None
-    the_target = to_object(event.selected_id)
+    damage_target = to_object(event.selected_id)
     <<-POP if target is None
     storing = get_inventory_value(shooter, "storing")
-    storage = get_inventory_value(shooter, "storage")
-    <<-POP if storage is None or storing is None
-    <<-POP if storage >= max_storage
-    <<-POP if not has_role(the_target, storing)
+    damage_storage = get_inventory_value(shooter, "storage")
+    <<-POP if damage_storage is None or storing is None
+    <<-POP if damage_storage >= black_board.max_storage
     
-    taking = get_inventory_value(the_target, "amount")
+    taking = get_inventory_value(damage_target, storing)
+    <<- POP if taking is None
     amount = 50
+    log "    Remaining {taking} Storage {damage_storage}"
     if taking< 50:
         amount= taking
-        do set_inventory_value(the_target, "amount", 0)
+        # Setting it to none removes the inventory entry
+        # So it will no longer be found
+        do set_inventory_value(damage_target, storing, None)
     else:
-        do set_inventory_value(the_target, "amount", taking - 50)
+        do set_inventory_value(damage_target, storing, taking - 50)
     end_if
-    amount = storage+amount
-    if amount > max_storage:
-        do set_inventory_value(shooter, "storage", max_storage)
+    damage_storage = damage_storage+amount
+    log "    took {amount} new Storage {damage_storage}"
+    if damage_storage > black_board.max_storage:
+        do set_inventory_value(shooter, "storage", black_board.max_storage)
     else:
-        do set_inventory_value(shooter, "storage", amount)
+        do set_inventory_value(shooter, "storage", damage_storage)
     end_if
-    log "damage mined {shooter.comms_id} {storing} {storage}"
+    log "damage {shooter.comms_id} mined {amount} {storing} storage {damage_storage}"
 end_event
 
-await => change_harvester_target & set_target
-delay 2s
--> harvester_patrol
 
-==== change_harvester_target ======
-=> new_orders | storage_is_full | mine_asteroid 
+await => mine_asteroid & unload_at_station
+delay sim 2s
+-> harvester_loop
+
+#==== change_harvester_target ======
+#=> new_orders | mine_asteroid 
+#->END
+
+
+====== mine_asteroid ===
+if black_board.FULL:
+->END
+end_if
+await -> => find_asteroid & set_target & storage_filled
+
+====== unload_at_station===
+if not black_board.FULL:
+->END
+end_if
+await->=> find_station & set_target & arrive_at_station & unload_storage
+
+???????? find_asteroid ????
+#log "find_asteroid"
+temp old_target = get_dedicated_link(self, "target")
+temp need = get_inventory_value(self, "storing")
+temp a_the_target = to_id(closest(self, role("ResourceAsteroid") & has_inventory(need)))
+->FAIL if a_the_target is None
+if a_the_target == old_target:
+->END
+end_if
+do set_dedicated_link(self,"target", a_the_target)
+do set_inventory_value(self, "target_changed", True)
+log "found_asteroid {to_object(a_the_target).comms_id}"
 ->END
 
-???????? storage_is_full ????
-storage = get_inventory_value(self, "storage")
--> FAIL if storage < max_storage
-the_target = closest(self, role("Station"))
+???????? storage_filled ????
+#log "storage_filled"
+temp storage = get_inventory_value(self, "storage")
+log "storage {storage} max {black_board.max_storage}"
+-> FAIL if storage is None
+-> FAIL if storage <= 0
+-> FAIL if storage < black_board.max_storage
+black_board.FULL = True
+log "storage full"
+->END
+
+??????? find_station ??????
+#log "find_station"
+temp old_target = get_dedicated_link(self,"target")
+temp the_target = closest(self, role("Station"))
 ->FAIL if the_target is None
-->FAIL if the_target == old_target
-do set_dedicated_link(self,"target", the_target)
+->FAIL if old_target == the_target
+do set_dedicated_link(self,"target", to_id(the_target))
 do set_inventory_value(self, "target_changed", True)
 ->END
 
-
-???????? mine_asteroid ????
-the_target = get_dedicated_link(self, "target")
+??????? arrive_at_station ???????
+#log "arrive_at_station"
+temp my_the_target = to_id(get_dedicated_link(self, "target"))
 target_changed = get_inventory_value(self, "target_changed")
 ->FAIL if target_changed
-if the_target is not None:
-    ->FAIL if the_target and distance_id(to_id(the_target), to_id(self)) > 700
+->FAIL if my_the_target is None
+->FAIL if distance_id(my_the_target, to_id(self)) > 700
+-> END
+
+
+???????? unload_storage ????
+log "unload_storage"
+storage = get_inventory_value(self, "storage")
+the_target = get_dedicated_link(self, "target")
+target_changed = get_inventory_value(self, "target_changed")
+-> FAIL if target_changed
+unloading = get_inventory_value(self, "storing")
+station_storage = get_inventory_value(the_target, unloading)
+-> FAIL if station_storage is None
+station_storage = station_storage + 50
+storage = storage - 50
+# Maybe need to limit this?
+if storage >= 0:
+    do set_inventory_value(the_target, unloading, station_storage)
+    do set_inventory_value(self, "storage", storage)
 end_if
-old_target = the_target
-need = get_inventory_value(self, "storing")
-the_target = closest(self, role(need))
-->FAIL if the_target is None
-->FAIL if the_target == old_target
-do set_dedicated_link(self,"target", the_target)
-do set_inventory_value(self, "target_changed", True)
+-> FAIL if storage >0
+black_board.FULL = False
 ->END
+
+
 
 
 
 ======== friendly_patrol  ==========
+
+#temp the_target = None
+#temp old_target = None
+#temp shooter = None
+#temp target_changed = False
+#temp unloading = None
+#temp need = None
+#temp object_target = None
 
 await => change_target & set_target
 delay 2s
@@ -212,11 +428,14 @@ delay 2s
 
 === set_target === 
 # set target and make sure not to shoot friendly
-the_target = to_object(get_dedicated_link(self, "target"))
+#log "set_target"
+the_target = get_dedicated_link(self, "target")
+object_target = to_object(the_target)
 target_changed = get_inventory_value(self, "target_changed")
+#->FAIL if target_changed
 if the_target and target_changed:
     #log "{the_target.comms_id} != {self.comms_id} {the_target.side != self.side}"
-    do target(sim, self, the_target, the_target.side != self.side)
+    do target(sim, self, the_target, object_target.side != self.side)
     do set_inventory_value(self, "target_changed", False)
 elif the_target is None and target_changed:
     do clear_target(sim, self)

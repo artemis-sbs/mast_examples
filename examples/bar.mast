@@ -18,8 +18,11 @@ refresh GotoBar
 end_event
 
 ===== EnterBar ===
+log "BAR"
 ~~ customers.append(my_face) ~~
+log "PAST face"
 refresh GotoBar
+log "PAST refresh"
 
 ============== GotoBar ===================
 section style="area: 0,0,60,80-30px;"

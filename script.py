@@ -22,7 +22,6 @@ def create_map(mast_scheduler):
     artemis = mast_scheduler.PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser").py_object
     hera = mast_scheduler.PlayerShip().spawn(sim, 0, 0, 0,"Hera", "tsn", "Battle Cruiser").py_object
     atlas = mast_scheduler.PlayerShip().spawn(sim, 0, 0, 0,"Atlas", "tsn", "Battle Cruiser").py_object
-   
 
     sbs.assign_client_to_ship(0, artemis.id)
     Mast.make_global_var("artemis", artemis)
@@ -32,8 +31,6 @@ def create_map(mast_scheduler):
     faces.set_face(artemis.id, faces.random_terran_male())
     faces.set_face(hera.id, faces.random_terran_female())
     faces.set_face(atlas.id, faces.random_terran_fluid())
-    
-
     # (count, x, y, z, r, outer=0, top_only=False, ring=False):
     # extra count doesn't matter
     friendly_pos  = sphere(5000, 0,0, 0, 2000, 4500,False, True)
@@ -52,6 +49,7 @@ def create_map(mast_scheduler):
             player.start_task("player_comms_station", {"station": station})
 
     for hr in range(randrange(3,5)):
+    #for hr in range(1):
         hr1 = mast_scheduler.Npc().spawn(sim, *next(friendly_pos), f"HR_{hr}", "tsn", "Cargo", "behav_npcship").py_object
         hr1.add_role("Harvester")
         hr1.set_inventory_value("storage", 0)
@@ -77,11 +75,11 @@ def create_map(mast_scheduler):
             ter1 = mast_scheduler.Npc().spawn(sim, *cluster, resource,None, "Asteroid 1", "behav_asteroid").py_object
             if resource is not None:
                 ter1.add_role("ResourceAsteroid")
-                ter1.add_role(resource)
-                ter1.set_inventory_value("amount", randrange(10, 20)*100)
+                #ter1.add_role(resource)
+                ter1.set_inventory_value(resource, randrange(10, 20)*100)
             faces.set_face(ter1.id, faces.random_terran(civilian=True))
 
-    # create a link from all harvesters to all Stations
+    #create a link from all harvesters to all Stations
     link(role("Friendly"), "Visit", role("Station"))
     create_wave(mast_scheduler, 4)
 
@@ -115,5 +113,3 @@ class MyStoryPage(StoryPage):
 
 Gui.server_start_page_class(MyStoryPage)
 Gui.client_start_page_class(MyStoryPage)
-
-
