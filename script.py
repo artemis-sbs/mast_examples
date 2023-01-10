@@ -16,7 +16,7 @@ class MyClass:
     def func():
         print("class member")
 
-@Mast.make_global
+#@Mast.make_global
 def create_map(mast_scheduler):
     sim = mast_scheduler.sim
     artemis = mast_scheduler.PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser").py_object
@@ -81,15 +81,15 @@ def create_map(mast_scheduler):
 
     #create a link from all harvesters to all Stations
     link(role("Friendly"), "Visit", role("Station"))
-    create_wave(mast_scheduler, 4)
+    #create_wave(mast_scheduler, 4)
 
 #@Mast.make_global
-def create_wave(mast_scheduler, count):
+def create_wave(mast_scheduler, raider_count):
     sim = mast_scheduler.sim
     enemy_pos  = sphere(5000, 0,0, 0, 7000, 8000,False, True)
     enemy_ships = ["Hunter", "Battleship", "Dreadnaught", "Goliath", "Leviathan", "Behemoth"]
     markers = "QKWR"
-    for _ in range(randrange(3,count)):
+    for _ in range(randrange(3,raider_count)):
         marker = f"{choice(markers)}_{randrange(99)}"
         ship = randrange(len(enemy_ships))
         raid= mast_scheduler.Npc().spawn(sim, *next(enemy_pos), marker, "raider", enemy_ships[ship], "behav_npcship").py_object
@@ -101,7 +101,7 @@ def create_wave(mast_scheduler, count):
         else:
             faces.set_face(raid.id, faces.random_torgoth())
     
-
+Mast.make_global_var("create_map", create_map)    
 Mast.make_global_var("create_wave", create_wave)    
 
 class MyStoryPage(StoryPage):
@@ -110,6 +110,7 @@ class MyStoryPage(StoryPage):
     #story_file = "examples/bar.mast"
     #story_file = "examples/joke.mast"
     story_file = "examples/add_cargo.mast"
+    #story_file = "examples/consoles.mast"
 
 Gui.server_start_page_class(MyStoryPage)
 Gui.client_start_page_class(MyStoryPage)

@@ -34,8 +34,6 @@ do sbs.create_new_sim()
 delay gui  1s
 do create_map(mast_scheduler)
 
-->END
-
 ========= spawn_wave ===========
 # Watches for no more raiders
 # if there are not any, spawn more
@@ -59,7 +57,7 @@ section style="area: 60,50, 75,90;"
 vradio ship "artemis, hera, atlas"
 
 section style="area: 85,50, 99,90;"
-vradio console "helm,weapons, comms,science,engineering,debug"
+vradio console_select "helm,weapons, comms,science,engineering,debug"
 blank
 row
 button "accept":
@@ -86,22 +84,7 @@ end_match
 sbs.assign_client_to_ship(client_id, id)
 ~~
 
-match console:
-    case "helm":
-        widget_list "normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
-    case "weapons":
-        widget_list "normal_weap" "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
-    case "science":
-        widget_list "normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
-    case "engineering":
-        widget_list "normal_engi" "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
-    case "comms":
-        widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
-    case "mainscreen":
-        widget_list "normal_main" "3dview^ship_data^text_waterfall"
-    case _:
-        """Pick a Console"""
-end_match
+console console_select
 
 await choice:
     + "Show Debug View":
